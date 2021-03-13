@@ -17,7 +17,7 @@ import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 
 public class Main extends JFrame {
 
-    private final int FSIZE = 32;
+    private final int FSIZE = 128;
     private final int FRAMEXOFFSET = 100;
     private BufferedImage original;
     private BufferedImage drop;
