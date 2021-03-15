@@ -35,7 +35,6 @@ public class Uploader {
             request.setHeader("Authorization", "Client-ID " + cId);
             request.bodyForm(new BasicNameValuePair("image", b64img));
             HttpResponse httpResponse = request.execute().returnResponse();
-            System.out.println(httpResponse.getStatusLine());
             if (httpResponse.getEntity() != null) {
                 String response = EntityUtils.toString(httpResponse.getEntity());
                 Matcher m = Pattern.compile("\"link\":\"(.*?)\"").matcher(response);

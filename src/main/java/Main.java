@@ -112,7 +112,7 @@ public class Main extends JFrame {
         }
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Where to save?");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Bitmap", "bmp");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("PNG", "png");
         fileChooser.setFileFilter(filter);
 
 
