@@ -58,7 +58,7 @@ public class Main extends JFrame {
 
             setLocationRelativeTo(null);
             this.setResizable(false);
-            this.setMinimumSize(new Dimension(800, 300));
+            this.setMinimumSize(new Dimension(850, 300));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             this.setVisible(true);
 
@@ -105,36 +105,47 @@ public class Main extends JFrame {
         this.repaint();
     }
 
+    private void save() {
+        if (shuffled == null) {
+            JOptionPane.showMessageDialog(this, "Image is empty. Did you shuffle at least once?");
+            return;
+        }
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Where to save?");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Bitmap", "bmp");
+        fileChooser.setFileFilter(filter);
+
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            if (!fileToSave.getAbsolutePath().endsWith(".png"))
+                fileToSave = new File(fileToSave + ".png");
+            try {
+                ImageIO.write(shuffled, "png", fileToSave);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private JPanel initButtonPanel() {
         JPanel buttons = new JPanel();
-        buttons.setLayout(new GridLayout(0, 2));
+        buttons.setLayout(new GridLayout(0, 3));
 
         JButton randomize = new JButton("Shuffle!");
         randomize.addActionListener(a -> shuffle());
         buttons.add(randomize);
 
         JButton save = new JButton("Save");
-        save.addActionListener(a -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setDialogTitle("Where to save?");
-            FileNameExtensionFilter filter = new FileNameExtensionFilter("Bitmap", "bmp");
-            fileChooser.setFileFilter(filter);
-
-
-            int userSelection = fileChooser.showSaveDialog(this);
-
-            if (userSelection == JFileChooser.APPROVE_OPTION) {
-                File fileToSave = fileChooser.getSelectedFile();
-                if (!fileToSave.getAbsolutePath().endsWith(".bmp"))
-                    fileToSave = new File(fileToSave + ".bmp");
-                try {
-                    ImageIO.write(shuffled, "BMP", fileToSave);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+        save.addActionListener(a -> save());
         buttons.add(save);
+
+        JButton upload = new JButton("Upload");
+        upload.addActionListener(a -> Uploader.imgurUpload(this, shuffled));
+        buttons.add(upload);
+
         return buttons;
     }
 
@@ -142,9 +153,15 @@ public class Main extends JFrame {
         JPanel border = new JPanel();
         border.add(new JLabel("Frame:"));
 
+        JLabel widthLabel = new JLabel("2");
+
         borderWidth.setPreferredSize(new Dimension(100, 20));
-        borderWidth.addChangeListener(a -> previewImage());
+        borderWidth.addChangeListener(a -> {
+            widthLabel.setText("" + borderWidth.getValue());
+            previewImage();
+        });
         border.add(borderWidth);
+        border.add(widthLabel);
 
         borderColor.addColorChangedListener(c -> previewImage());
         border.add(borderColor);
