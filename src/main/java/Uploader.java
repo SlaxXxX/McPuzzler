@@ -1,4 +1,5 @@
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
@@ -19,7 +20,7 @@ public class Uploader {
     private static final String url = "https://api.imgur.com/3/image";
     private static final String cId = "9e1d8b1416d134a";
 
-    public static void imgurUpload(JFrame parent, BufferedImage img) {
+    public static void imgurUpload(JFrame parent, BufferedImage img) throws IOException {
         if (img == null) {
             JOptionPane.showMessageDialog(parent, "Image is empty. Did you shuffle at least once?");
             return;
@@ -30,26 +31,27 @@ public class Uploader {
         try {
             ImageIO.write(img, "png", os);
             b64img = Base64.getEncoder().encodeToString(os.toByteArray());
-
-            Request request = Request.Post(url);
-            request.setHeader("Authorization", "Client-ID " + cId);
-            request.bodyForm(new BasicNameValuePair("image", b64img));
-            HttpResponse httpResponse = request.execute().returnResponse();
-            if (httpResponse.getEntity() != null) {
-                String response = EntityUtils.toString(httpResponse.getEntity());
-                Matcher m = Pattern.compile("\"link\":\"(.*?)\"").matcher(response);
-                if (m.find())
-                    showDialog(m.group(1).replace("\\", ""), parent);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
         } finally {
-            try {
-                os.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            os.close();
         }
+
+        Request request = Request.Post(url);
+        request.setHeader("Authorization", "Client-ID " + cId);
+        request.bodyForm(new BasicNameValuePair("image", b64img));
+        HttpResponse httpResponse = request.execute().returnResponse();
+        int code = httpResponse.getStatusLine().getStatusCode();
+        if (code == HttpStatus.SC_OK && httpResponse.getEntity() != null) {
+            String response = EntityUtils.toString(httpResponse.getEntity());
+            Matcher m = Pattern.compile("\"link\":\"(.*?)\"").matcher(response);
+            if (m.find())
+                showDialog(m.group(1).replace("\\", ""), parent);
+        } else {
+            if (httpResponse.getEntity() != null)
+                throw new IOException(String.format("Server responded with Code %s\nResponse dump: %s", code, EntityUtils.toString(httpResponse.getEntity())));
+            else
+                throw new IOException(String.format("Server responded with Code %s\nNo response Entity!", code));
+        }
+
     }
 
     private static void showDialog(String url, JFrame parent) {

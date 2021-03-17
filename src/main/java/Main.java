@@ -2,13 +2,17 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class Main extends JFrame {
 
@@ -143,7 +147,14 @@ public class Main extends JFrame {
         buttons.add(save);
 
         JButton upload = new JButton("Upload");
-        upload.addActionListener(a -> Uploader.imgurUpload(this, shuffled));
+
+        upload.addActionListener(a -> {
+            try {
+                Uploader.imgurUpload(this, shuffled);
+            } catch (Exception e) {
+                showErrorDialog(e);
+            }
+        });
         buttons.add(upload);
 
         return buttons;
@@ -182,5 +193,20 @@ public class Main extends JFrame {
         return scale;
     }
 
-
+    private void showErrorDialog(Exception e) {
+        int n = JOptionPane.showOptionDialog(this,
+                e.getMessage(),
+                "Whoops",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.ERROR_MESSAGE,
+                null,     //do not use a custom Icon
+                new Object[]{"Copy full Exception to Clipboard"},
+                "Copy full Exception to Clipboard"); //default button title
+        if (n != JOptionPane.CLOSED_OPTION) {
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            clipboard.setContents(new StringSelection(e.getClass() + ": " + e.getMessage() + "\n" +
+                    Arrays.stream(e.getStackTrace()).map(StackTraceElement::toString)
+                            .collect(Collectors.joining("\n"))), null);
+        }
+    }
 }
