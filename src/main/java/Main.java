@@ -8,28 +8,38 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-public class Main extends JFrame {
+public class Main extends JFrame implements MouseWheelListener {
 
     private final int FSIZE = 128;
     private final int FRAMEXOFFSET = 100;
+    private final float SCROLLSTEP = 1.05f;
+    private boolean cropMode = false;
+    private int offsetx, offsety;
+    private double scale = 0.5;
 
-    private ImageHandler imgHandler = new ImageHandler();
+    private final ImageHandler imgHandler = new ImageHandler();
     private BufferedImage original;
-    private BufferedImage drop;
     private BufferedImage preview;
     private BufferedImage shuffled;
 
     JPanel dropPanel = new JPanel();
+    JPanel buttonPanel = new JPanel();
+    JPanel borderPanel = new JPanel();
+    JPanel cropPanel = new JPanel();
     JSlider borderWidth = new JSlider(0, 10, 2);
-    JSlider imgScale = new JSlider(100, 1500, 500);
     ColorChooserButton borderColor = new ColorChooserButton(Color.ORANGE);
-    JCheckBox scaleSnap = new JCheckBox("Snap to Grid");
+    JButton cropButton = new JButton("Edit cropping");
+    JTextField xGridField = new JTextField("6");
+    JTextField yGridField = new JTextField("5");
+
+    int draggedAtX, draggedAtY;
 
     public static void main(String[] args) {
         new Main();
@@ -41,7 +51,7 @@ public class Main extends JFrame {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         try {
-            drop = ImageIO.read(getClass().getResource("drop-files-here-extra.jpg"));
+            BufferedImage drop = ImageIO.read(getClass().getResource("drop-files-here-extra.jpg"));
             displayImage(drop);
             dropPanel.setDropTarget(new DropTarget() {
                 public synchronized void drop(DropTargetDropEvent evt) {
@@ -50,21 +60,42 @@ public class Main extends JFrame {
                         java.util.List<File> droppedFiles = (java.util.List<File>)
                                 evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                         original = ImageIO.read(droppedFiles.get(0));
+                        cropButton.setEnabled(true);
                         previewImage();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
                 }
             });
+            this.add(initCropPanel());
             this.add(initButtonPanel());
             this.add(initBorderPanel());
-            this.add(initScalePanel());
             this.add(dropPanel);
 
             setLocationRelativeTo(null);
             this.setResizable(false);
-            this.setMinimumSize(new Dimension(950, 400));
+            this.setMinimumSize(new Dimension(700, 300));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+            this.addMouseWheelListener(this);
+            addMouseListener(new MouseAdapter() {
+                public void mousePressed(MouseEvent e) {
+                    draggedAtX = e.getX();
+                    draggedAtY = e.getY();
+                }
+            });
+            addMouseMotionListener(new MouseMotionAdapter() {
+                public void mouseDragged(MouseEvent e) {
+                    if (cropMode) {
+                        offsetx -= draggedAtX - e.getX();
+                        offsety -= draggedAtY - e.getY();
+                        draggedAtX = e.getX();
+                        draggedAtY = e.getY();
+                        previewImage();
+                    }
+                }
+            });
+
             this.setVisible(true);
 
         } catch (Exception ex) {
@@ -74,25 +105,15 @@ public class Main extends JFrame {
 
     private void previewImage() {
         if (original != null) {
-            double scaleWidth = original.getWidth() * getScale();
-            double scaleHeight = original.getHeight() * getScale();
-            int gwidth = Math.max((int) (scaleWidth / FSIZE), 1);
-            int gheight = Math.max((int) (scaleHeight / FSIZE), 1);
-            int width = gwidth * FSIZE;
-            int height = gheight * FSIZE;
-            double scale = getScale();
-            if (scaleSnap.isSelected() && scaleWidth >= width && scaleHeight >= height) {
-                if (scaleWidth - width <= scaleHeight - height)
-                    scale = (double) (width) / original.getWidth();
-                else
-                    scale = (double) (height) / original.getHeight();
+            try {
+                int width = Integer.parseInt(xGridField.getText()) * FSIZE;
+                int height = Integer.parseInt(yGridField.getText()) * FSIZE;
+                preview = imgHandler.cloneScaledSubImage(original, offsetx, offsety, width, height, scale);
+                if (!cropMode)
+                    imgHandler.addBorder(preview, borderWidth.getValue(), borderColor.getSelectedColor());
+                displayImage(preview);
+            } catch (NumberFormatException ignored) {
             }
-
-            preview = imgHandler.cloneScaledSubImage(original, 0, 0, width, height, scale);
-            imgHandler.addBorder(preview, borderWidth.getValue(), borderColor.getSelectedColor());
-
-            this.setTitle("MC Puzzler " + String.format("( %s | %s )", gwidth, gheight));
-            displayImage(preview);
         }
     }
 
@@ -101,10 +122,6 @@ public class Main extends JFrame {
             shuffled = imgHandler.shuffle(preview, FSIZE);
             displayImage(shuffled);
         }
-    }
-
-    private float getScale() {
-        return (float) imgScale.getValue() / 1000;
     }
 
     private void displayImage(BufferedImage img) {
@@ -144,17 +161,28 @@ public class Main extends JFrame {
         }
     }
 
+    private void toggleCrop() {
+        if (original != null) {
+            cropMode = !cropMode;
+            xGridField.setEnabled(cropMode);
+            yGridField.setEnabled(cropMode);
+            setChildrenEnabled(buttonPanel, !cropMode);
+            setChildrenEnabled(borderPanel, !cropMode);
+            cropButton.setText(cropMode ? "Crop!" : "Edit cropping");
+        }
+        previewImage();
+    }
+
     private JPanel initButtonPanel() {
-        JPanel buttons = new JPanel();
-        buttons.setLayout(new GridLayout(0, 3));
+        buttonPanel.setLayout(new GridLayout(0, 3));
 
         JButton randomize = new JButton("Shuffle!");
         randomize.addActionListener(a -> shuffle());
-        buttons.add(randomize);
+        buttonPanel.add(randomize);
 
         JButton save = new JButton("Save");
         save.addActionListener(a -> save());
-        buttons.add(save);
+        buttonPanel.add(save);
 
         JButton upload = new JButton("Upload");
 
@@ -165,14 +193,13 @@ public class Main extends JFrame {
                 showErrorDialog(e);
             }
         });
-        buttons.add(upload);
+        buttonPanel.add(upload);
 
-        return buttons;
+        return buttonPanel;
     }
 
     private JPanel initBorderPanel() {
-        JPanel border = new JPanel();
-        border.add(new JLabel("Frame:"));
+        borderPanel.add(new JLabel("Frame:"));
 
         JLabel widthLabel = new JLabel("2");
 
@@ -181,28 +208,29 @@ public class Main extends JFrame {
             widthLabel.setText("" + borderWidth.getValue());
             previewImage();
         });
-        border.add(borderWidth);
-        border.add(widthLabel);
+        borderPanel.add(borderWidth);
+        borderPanel.add(widthLabel);
 
         borderColor.addColorChangedListener(c -> previewImage());
-        border.add(borderColor);
+        borderPanel.add(borderColor);
 
-        return border;
+        return borderPanel;
     }
 
-    private JPanel initScalePanel() {
-        JPanel scale = new JPanel();
-        scale.add(new JLabel("Size:"));
+    private JPanel initCropPanel() {
+        cropButton.addActionListener(a -> toggleCrop());
+        cropPanel.add(cropButton);
 
-        imgScale.setPreferredSize(new Dimension(300, 20));
-        imgScale.addChangeListener(a -> {
-            previewImage();
-        });
-        scale.add(imgScale);
-        scaleSnap.setSelected(true);
-        scale.add(scaleSnap);
+        xGridField.setPreferredSize(new Dimension(25, 20));
+        yGridField.setPreferredSize(new Dimension(25, 20));
+        xGridField.addActionListener(e -> previewImage());
+        yGridField.addActionListener(e -> previewImage());
+        cropPanel.add(xGridField);
+        cropPanel.add(new JLabel("x"));
+        cropPanel.add(yGridField);
 
-        return scale;
+        setChildrenEnabled(cropPanel, false);
+        return cropPanel;
     }
 
     private void showErrorDialog(Exception e) {
@@ -219,6 +247,23 @@ public class Main extends JFrame {
             clipboard.setContents(new StringSelection(e.getClass() + ": " + e.getMessage() + "\n" +
                     Arrays.stream(e.getStackTrace()).map(StackTraceElement::toString)
                             .collect(Collectors.joining("\n"))), null);
+        }
+    }
+
+    void setChildrenEnabled(Component component, boolean enabled) {
+        for (Component child : ((Container) component).getComponents()) {
+            child.setEnabled(enabled);
+        }
+    }
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        if (cropMode) {
+            if (e.getWheelRotation() > 0)
+                scale = Math.max(0.1, scale / SCROLLSTEP);
+            else
+                scale = Math.min(2, scale * SCROLLSTEP);
+            previewImage();
         }
     }
 }
