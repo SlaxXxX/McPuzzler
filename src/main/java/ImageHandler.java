@@ -35,7 +35,7 @@ public class ImageHandler {
         g.dispose();
     }
 
-    public BufferedImage cloneScaledSubImage(BufferedImage source, int x, int y, int width, int height, float scale) {
+    public BufferedImage cloneScaledSubImage(BufferedImage source, int x, int y, int width, int height, double scale) {
         BufferedImage img = new BufferedImage(width, height, source.getType());
         final AffineTransform at = AffineTransform.getScaleInstance(scale, scale);
         final AffineTransformOp ato = new AffineTransformOp(at, AffineTransformOp.TYPE_BICUBIC);

@@ -29,6 +29,7 @@ public class Main extends JFrame {
     JSlider borderWidth = new JSlider(0, 10, 2);
     JSlider imgScale = new JSlider(100, 1500, 500);
     ColorChooserButton borderColor = new ColorChooserButton(Color.ORANGE);
+    JCheckBox scaleSnap = new JCheckBox("Snap to Grid");
 
     public static void main(String[] args) {
         new Main();
@@ -62,7 +63,7 @@ public class Main extends JFrame {
 
             setLocationRelativeTo(null);
             this.setResizable(false);
-            this.setMinimumSize(new Dimension(850, 300));
+            this.setMinimumSize(new Dimension(950, 400));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             this.setVisible(true);
 
@@ -73,12 +74,21 @@ public class Main extends JFrame {
 
     private void previewImage() {
         if (original != null) {
-            int gwidth = Math.max((int) (original.getWidth() * getScale() / FSIZE), 1);
-            int gheight = Math.max((int) (original.getHeight() * getScale() / FSIZE), 1);
+            double scaleWidth = original.getWidth() * getScale();
+            double scaleHeight = original.getHeight() * getScale();
+            int gwidth = Math.max((int) (scaleWidth / FSIZE), 1);
+            int gheight = Math.max((int) (scaleHeight / FSIZE), 1);
             int width = gwidth * FSIZE;
             int height = gheight * FSIZE;
+            double scale = getScale();
+            if (scaleSnap.isSelected() && scaleWidth >= width && scaleHeight >= height) {
+                if (scaleWidth - width <= scaleHeight - height)
+                    scale = (double) (width) / original.getWidth();
+                else
+                    scale = (double) (height) / original.getHeight();
+            }
 
-            preview = imgHandler.cloneScaledSubImage(original, 0, 0, width, height, getScale());
+            preview = imgHandler.cloneScaledSubImage(original, 0, 0, width, height, scale);
             imgHandler.addBorder(preview, borderWidth.getValue(), borderColor.getSelectedColor());
 
             this.setTitle("MC Puzzler " + String.format("( %s | %s )", gwidth, gheight));
@@ -189,6 +199,8 @@ public class Main extends JFrame {
             previewImage();
         });
         scale.add(imgScale);
+        scaleSnap.setSelected(true);
+        scale.add(scaleSnap);
 
         return scale;
     }
