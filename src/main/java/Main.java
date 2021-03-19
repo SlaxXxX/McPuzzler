@@ -37,6 +37,7 @@ public class Main extends JFrame implements MouseWheelListener {
     JSlider borderWidth = new JSlider(0, 10, 2);
     ColorChooserButton borderColor = new ColorChooserButton(Color.BLACK);
     JButton cropButton = new JButton("Edit cropping");
+    JButton autoButton = new JButton("Auto adjust");
     JTextField xGridField = new JTextField("6");
     JTextField yGridField = new JTextField("5");
 
@@ -62,13 +63,8 @@ public class Main extends JFrame implements MouseWheelListener {
                                 evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                         original = ImageIO.read(droppedFiles.get(0));
                         cropButton.setEnabled(true);
-                        if (original.getWidth() < CROPTHRESHOLD * FSIZE) {
-                            xGridField.setText("" + original.getWidth() / FSIZE);
-                            yGridField.setText("" + original.getHeight() / FSIZE);
-                            scale = 1;
-                        } else {
-                            scale = 0.5;
-                        }
+                        scale = original.getWidth() < CROPTHRESHOLD * FSIZE ? 1 : 0.5;
+                        setIdealFrameSize(original);
                         previewImage();
                     } catch (Exception ex) {
                         ex.printStackTrace();
@@ -82,7 +78,7 @@ public class Main extends JFrame implements MouseWheelListener {
 
             setLocationRelativeTo(null);
             this.setResizable(false);
-            this.setMinimumSize(new Dimension(700, 300));
+            this.setMinimumSize(new Dimension(800, 300));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             this.addMouseWheelListener(this);
@@ -174,6 +170,7 @@ public class Main extends JFrame implements MouseWheelListener {
             cropMode = !cropMode;
             xGridField.setEnabled(cropMode);
             yGridField.setEnabled(cropMode);
+            autoButton.setEnabled(cropMode);
             setChildrenEnabled(buttonPanel, !cropMode);
             setChildrenEnabled(borderPanel, !cropMode);
             cropButton.setText(cropMode ? "Crop!" : "Edit cropping");
@@ -236,6 +233,11 @@ public class Main extends JFrame implements MouseWheelListener {
         cropPanel.add(xGridField);
         cropPanel.add(new JLabel("x"));
         cropPanel.add(yGridField);
+        autoButton.addActionListener(e -> {
+            setIdealFrameSize(original);
+            previewImage();
+        });
+        cropPanel.add(autoButton);
 
         setChildrenEnabled(cropPanel, false);
         return cropPanel;
@@ -262,6 +264,11 @@ public class Main extends JFrame implements MouseWheelListener {
         for (Component child : ((Container) component).getComponents()) {
             child.setEnabled(enabled);
         }
+    }
+
+    void setIdealFrameSize(BufferedImage img) {
+        xGridField.setText("" + (int) (img.getWidth() * scale) / FSIZE);
+        yGridField.setText("" + (int) (img.getHeight() * scale) / FSIZE);
     }
 
     @Override
