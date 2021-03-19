@@ -31,6 +31,9 @@ public class Uploader {
         try {
             ImageIO.write(img, "png", os);
             b64img = Base64.getEncoder().encodeToString(os.toByteArray());
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(parent, "An error occured while encoding the image.");
+            return;
         } finally {
             os.close();
         }

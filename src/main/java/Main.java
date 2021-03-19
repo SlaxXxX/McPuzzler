@@ -18,11 +18,12 @@ import java.util.stream.Collectors;
 public class Main extends JFrame implements MouseWheelListener {
 
     private final int FSIZE = 128;
+    private final int CROPTHRESHOLD = 10;
     private final int FRAMEXOFFSET = 100;
-    private final float SCROLLSTEP = 1.05f;
+    private final float SCROLLSTEP = 0.05f;
     private boolean cropMode = false;
     private int offsetx, offsety;
-    private double scale = 0.5;
+    private double scale = 1;
 
     private final ImageHandler imgHandler = new ImageHandler();
     private BufferedImage original;
@@ -34,7 +35,7 @@ public class Main extends JFrame implements MouseWheelListener {
     JPanel borderPanel = new JPanel();
     JPanel cropPanel = new JPanel();
     JSlider borderWidth = new JSlider(0, 10, 2);
-    ColorChooserButton borderColor = new ColorChooserButton(Color.ORANGE);
+    ColorChooserButton borderColor = new ColorChooserButton(Color.BLACK);
     JButton cropButton = new JButton("Edit cropping");
     JTextField xGridField = new JTextField("6");
     JTextField yGridField = new JTextField("5");
@@ -61,6 +62,13 @@ public class Main extends JFrame implements MouseWheelListener {
                                 evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                         original = ImageIO.read(droppedFiles.get(0));
                         cropButton.setEnabled(true);
+                        if (original.getWidth() < CROPTHRESHOLD * FSIZE) {
+                            xGridField.setText("" + original.getWidth() / FSIZE);
+                            yGridField.setText("" + original.getHeight() / FSIZE);
+                            scale = 1;
+                        } else {
+                            scale = 0.5;
+                        }
                         previewImage();
                     } catch (Exception ex) {
                         ex.printStackTrace();
@@ -260,9 +268,9 @@ public class Main extends JFrame implements MouseWheelListener {
     public void mouseWheelMoved(MouseWheelEvent e) {
         if (cropMode) {
             if (e.getWheelRotation() > 0)
-                scale = Math.max(0.1, scale / SCROLLSTEP);
+                scale = Math.max(0.1, scale - SCROLLSTEP);
             else
-                scale = Math.min(2, scale * SCROLLSTEP);
+                scale = Math.min(2, scale + SCROLLSTEP);
             previewImage();
         }
     }
