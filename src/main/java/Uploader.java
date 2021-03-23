@@ -22,7 +22,7 @@ public class Uploader {
 
     public static void imgurUpload(JFrame parent, BufferedImage img) throws IOException {
         if (img == null) {
-            JOptionPane.showMessageDialog(parent, "Image is empty. Did you shuffle at least once?");
+            JOptionPane.showMessageDialog(parent, "There is no image to be uploaded.");
             return;
         }
         final ByteArrayOutputStream os = new ByteArrayOutputStream();

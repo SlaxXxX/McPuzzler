@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-public class Main extends JFrame implements MouseWheelListener {
+public class Main extends JFrame {
 
     private final int FSIZE = 128;
     private final int CROPTHRESHOLD = 10;
@@ -27,8 +27,8 @@ public class Main extends JFrame implements MouseWheelListener {
 
     private final ImageHandler imgHandler = new ImageHandler();
     private BufferedImage original;
-    private BufferedImage preview;
-    private BufferedImage shuffled;
+    private BufferedImage cropped;
+    private BufferedImage displayed;
 
     JPanel dropPanel = new JPanel();
     JPanel buttonPanel = new JPanel();
@@ -38,8 +38,8 @@ public class Main extends JFrame implements MouseWheelListener {
     ColorChooserButton borderColor = new ColorChooserButton(Color.BLACK);
     JButton cropButton = new JButton("Edit cropping");
     JButton autoButton = new JButton("Auto adjust");
-    JTextField xGridField = new JTextField("6");
-    JTextField yGridField = new JTextField("5");
+    JTextField xGridField = new JTextField("0");
+    JTextField yGridField = new JTextField("0");
 
     int draggedAtX, draggedAtY;
 
@@ -81,24 +81,7 @@ public class Main extends JFrame implements MouseWheelListener {
             this.setMinimumSize(new Dimension(800, 300));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-            this.addMouseWheelListener(this);
-            addMouseListener(new MouseAdapter() {
-                public void mousePressed(MouseEvent e) {
-                    draggedAtX = e.getX();
-                    draggedAtY = e.getY();
-                }
-            });
-            addMouseMotionListener(new MouseMotionAdapter() {
-                public void mouseDragged(MouseEvent e) {
-                    if (cropMode) {
-                        offsetx -= draggedAtX - e.getX();
-                        offsety -= draggedAtY - e.getY();
-                        draggedAtX = e.getX();
-                        draggedAtY = e.getY();
-                        previewImage();
-                    }
-                }
-            });
+            addListeners();
 
             this.setVisible(true);
 
@@ -112,20 +95,18 @@ public class Main extends JFrame implements MouseWheelListener {
             try {
                 int width = Integer.parseInt(xGridField.getText()) * FSIZE;
                 int height = Integer.parseInt(yGridField.getText()) * FSIZE;
-                preview = imgHandler.cloneScaledSubImage(original, offsetx, offsety, width, height, scale);
+                cropped = imgHandler.cloneScaledSubImage(original, offsetx, offsety, width, height, scale);
                 if (!cropMode)
-                    imgHandler.addBorder(preview, borderWidth.getValue(), borderColor.getSelectedColor());
-                displayImage(preview);
+                    imgHandler.addBorder(cropped, borderWidth.getValue(), borderColor.getSelectedColor());
+                displayImage(cropped);
             } catch (NumberFormatException ignored) {
             }
         }
     }
 
     private void shuffle() {
-        if (preview != null) {
-            shuffled = imgHandler.shuffle(preview, FSIZE);
-            displayImage(shuffled);
-        }
+        if (cropped != null)
+            displayImage(imgHandler.shuffle(cropped, FSIZE));
     }
 
     private void displayImage(BufferedImage img) {
@@ -135,14 +116,15 @@ public class Main extends JFrame implements MouseWheelListener {
         dropPanel.add(lbl);
 
         this.setSize(img.getWidth() + 40, img.getHeight() + FRAMEXOFFSET);
+        displayed = img;
 
         this.revalidate();
         this.repaint();
     }
 
     private void save() {
-        if (shuffled == null) {
-            JOptionPane.showMessageDialog(this, "Image is empty. Did you shuffle at least once?");
+        if (displayed == null) {
+            JOptionPane.showMessageDialog(this, "There is no image to be saved.");
             return;
         }
         JFileChooser fileChooser = new JFileChooser();
@@ -158,7 +140,7 @@ public class Main extends JFrame implements MouseWheelListener {
             if (!fileToSave.getAbsolutePath().endsWith(".png"))
                 fileToSave = new File(fileToSave + ".png");
             try {
-                ImageIO.write(shuffled, "png", fileToSave);
+                ImageIO.write(displayed, "png", fileToSave);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -193,7 +175,7 @@ public class Main extends JFrame implements MouseWheelListener {
 
         upload.addActionListener(a -> {
             try {
-                Uploader.imgurUpload(this, shuffled);
+                Uploader.imgurUpload(this, displayed);
             } catch (Exception e) {
                 showErrorDialog(e);
             }
@@ -243,6 +225,42 @@ public class Main extends JFrame implements MouseWheelListener {
         return cropPanel;
     }
 
+    private void addListeners() {
+        addMouseWheelListener(e -> {
+            if (cropMode) {
+                double newScale;
+                if (e.getWheelRotation() > 0)
+                    newScale = Math.max(0.1, scale - SCROLLSTEP);
+                else
+                    newScale = Math.min(2, scale + SCROLLSTEP);
+
+                offsetx += (scale - newScale) * original.getWidth() /
+                        (original.getWidth() * scale / (e.getX() - offsetx - 15));
+                offsety += (scale - newScale) * original.getHeight() /
+                        (original.getHeight() * scale / (e.getY() - offsety - 75));
+                scale = newScale;
+                previewImage();
+            }
+        });
+        addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                draggedAtX = e.getX();
+                draggedAtY = e.getY();
+            }
+        });
+        addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                if (cropMode) {
+                    offsetx -= draggedAtX - e.getX();
+                    offsety -= draggedAtY - e.getY();
+                    draggedAtX = e.getX();
+                    draggedAtY = e.getY();
+                    previewImage();
+                }
+            }
+        });
+    }
+
     private void showErrorDialog(Exception e) {
         int n = JOptionPane.showOptionDialog(this,
                 e.getMessage(),
@@ -269,16 +287,5 @@ public class Main extends JFrame implements MouseWheelListener {
     void setIdealFrameSize(BufferedImage img) {
         xGridField.setText("" + (int) (img.getWidth() * scale) / FSIZE);
         yGridField.setText("" + (int) (img.getHeight() * scale) / FSIZE);
-    }
-
-    @Override
-    public void mouseWheelMoved(MouseWheelEvent e) {
-        if (cropMode) {
-            if (e.getWheelRotation() > 0)
-                scale = Math.max(0.1, scale - SCROLLSTEP);
-            else
-                scale = Math.min(2, scale + SCROLLSTEP);
-            previewImage();
-        }
     }
 }
