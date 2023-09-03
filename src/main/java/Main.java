@@ -37,7 +37,8 @@ public class Main extends JFrame {
     JSlider borderWidth = new JSlider(0, 10, 2);
     ColorChooserButton borderColor = new ColorChooserButton(Color.BLACK);
     JButton cropButton = new JButton("Edit cropping");
-    JButton autoButton = new JButton("Auto adjust");
+    JButton autoButton = new JButton("Fit puzzle to image");
+    JButton orientButton = new JButton("Fit image to puzzle");
     JTextField xGridField = new JTextField("0");
     JTextField yGridField = new JTextField("0");
 
@@ -64,8 +65,8 @@ public class Main extends JFrame {
                         original = ImageIO.read(droppedFiles.get(0));
                         cropButton.setEnabled(true);
                         scale = original.getWidth() < CROPTHRESHOLD * FSIZE ? 1 : 0.5;
-                        setIdealFrameSize(original);
-                        previewImage();
+                        setIdealFrameSize();
+                        resetAndPreviewImage();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
@@ -78,7 +79,7 @@ public class Main extends JFrame {
 
             setLocationRelativeTo(null);
             this.setResizable(false);
-            this.setMinimumSize(new Dimension(800, 300));
+            this.setMinimumSize(new Dimension(1000, 300));
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             addListeners();
@@ -90,18 +91,32 @@ public class Main extends JFrame {
         }
     }
 
+    private void resetAndPreviewImage() {
+        fitImageToView();
+        previewImage();
+    }
     private void previewImage() {
         if (original != null) {
             try {
-                int width = Integer.parseInt(xGridField.getText()) * FSIZE;
-                int height = Integer.parseInt(yGridField.getText()) * FSIZE;
+                int width = getCroppedWidth();
+                int height = getCroppedHeight();
                 cropped = imgHandler.cloneScaledSubImage(original, offsetx, offsety, width, height, scale);
-                if (!cropMode)
+                if (cropMode)
+                    imgHandler.overlayPuzzleTiles(cropped, FSIZE);
+                else
                     imgHandler.addBorder(cropped, borderWidth.getValue(), borderColor.getSelectedColor());
                 displayImage(cropped);
             } catch (NumberFormatException ignored) {
             }
         }
+    }
+
+    private int getCroppedHeight() {
+        return Integer.parseInt(yGridField.getText()) * FSIZE;
+    }
+
+    private int getCroppedWidth() {
+        return Integer.parseInt(xGridField.getText()) * FSIZE;
     }
 
     private void shuffle() {
@@ -153,6 +168,7 @@ public class Main extends JFrame {
             xGridField.setEnabled(cropMode);
             yGridField.setEnabled(cropMode);
             autoButton.setEnabled(cropMode);
+            orientButton.setEnabled(cropMode);
             setChildrenEnabled(buttonPanel, !cropMode);
             setChildrenEnabled(borderPanel, !cropMode);
             cropButton.setText(cropMode ? "Crop!" : "Edit cropping");
@@ -193,7 +209,7 @@ public class Main extends JFrame {
         borderWidth.setPreferredSize(new Dimension(100, 20));
         borderWidth.addChangeListener(a -> {
             widthLabel.setText("" + borderWidth.getValue());
-            previewImage();
+            resetAndPreviewImage();
         });
         borderPanel.add(borderWidth);
         borderPanel.add(widthLabel);
@@ -210,16 +226,20 @@ public class Main extends JFrame {
 
         xGridField.setPreferredSize(new Dimension(25, 20));
         yGridField.setPreferredSize(new Dimension(25, 20));
-        xGridField.addActionListener(e -> previewImage());
-        yGridField.addActionListener(e -> previewImage());
+        xGridField.addActionListener(e -> resetAndPreviewImage());
+        yGridField.addActionListener(e -> resetAndPreviewImage());
         cropPanel.add(xGridField);
         cropPanel.add(new JLabel("x"));
         cropPanel.add(yGridField);
         autoButton.addActionListener(e -> {
-            setIdealFrameSize(original);
-            previewImage();
+            setIdealFrameSize();
+            resetAndPreviewImage();
         });
         cropPanel.add(autoButton);
+        orientButton.addActionListener(e -> {
+            resetAndPreviewImage();
+        });
+        cropPanel.add(orientButton);
 
         setChildrenEnabled(cropPanel, false);
         return cropPanel;
@@ -232,7 +252,7 @@ public class Main extends JFrame {
                 if (e.getWheelRotation() > 0)
                     newScale = Math.max(0.1, scale - SCROLLSTEP);
                 else
-                    newScale = Math.min(2, scale + SCROLLSTEP);
+                    newScale = Math.min(4, scale + SCROLLSTEP);
 
                 offsetx += (scale - newScale) * original.getWidth() /
                         (original.getWidth() * scale / (e.getX() - offsetx - 15));
@@ -284,8 +304,14 @@ public class Main extends JFrame {
         }
     }
 
-    void setIdealFrameSize(BufferedImage img) {
-        xGridField.setText("" + (int) (img.getWidth() * scale) / FSIZE);
-        yGridField.setText("" + (int) (img.getHeight() * scale) / FSIZE);
+    void setIdealFrameSize() {
+        xGridField.setText("" + (int) (original.getWidth() * scale) / FSIZE);
+        yGridField.setText("" + (int) (original.getHeight() * scale) / FSIZE);
+    }
+
+    void fitImageToView() {
+        offsetx = 0;
+        offsety = 0;
+        scale = Math.max((double) getCroppedWidth() / original.getWidth(), (double) getCroppedHeight() / original.getHeight());
     }
 }

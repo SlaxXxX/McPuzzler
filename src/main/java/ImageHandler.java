@@ -43,6 +43,22 @@ public class ImageHandler {
         return ato.filter(source, img);
     }
 
+    public BufferedImage overlayPuzzleTiles(BufferedImage source, int tileSize) {
+        Color color1 = new Color(150, 150, 150, 80);
+        Color color2 = new Color(100, 100, 100, 80);
+        Graphics2D g = (Graphics2D) source.getGraphics();
+
+        for (int x = 0; x < source.getWidth() / tileSize; x++) {
+            for (int y = 0; y < source.getHeight() / tileSize; y++) {
+                g.setColor((x + y) % 2 == 0 ? color1 : color2);
+                g.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+
+        g.dispose();
+        return source;
+    }
+
     private void fillTile(BufferedImage reference, BufferedImage imageToFill, int index, int tile, int tileSize) {
         int gWidth = reference.getWidth() / tileSize;
         int y = tile / gWidth;
